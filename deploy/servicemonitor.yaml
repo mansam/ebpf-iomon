@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ebpf-iomon
+  namespace: ebpf-iomon
+  labels:
+    app.kubernetes.io/name: ebpf-iomon
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ebpf-iomon
+  namespaceSelector:
+    matchNames:
+      - ebpf-iomon
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics

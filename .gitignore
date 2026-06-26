@@ -1,0 +1,5 @@
+bin/
+hack/
+.idea/
+.claude/
+*.test
