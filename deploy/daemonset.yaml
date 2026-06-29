@@ -63,6 +63,7 @@ spec:
           volumeMounts:
             - name: sys
               mountPath: /sys
+              readOnly: true
               mountPropagation: HostToContainer
           livenessProbe:
             httpGet:
