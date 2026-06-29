@@ -4,21 +4,24 @@ import "math"
 
 const MaxSlots = 26
 
-var log2BucketsSec [MaxSlots]float64
+var promBuckets = []float64{0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
+
+var slotCeiling [MaxSlots]float64
 
 func init() {
 	for i := 0; i < MaxSlots; i++ {
-		log2BucketsSec[i] = float64(uint64(1)<<uint(i)) / 1_000_000.0
+		slotCeiling[i] = float64(uint64(1)<<uint(i)) / 1_000_000.0
 	}
 }
 
 func SlotsToConstHistogram(slots [MaxSlots]uint64) (count uint64, sum float64, buckets map[float64]uint64) {
-	buckets = make(map[float64]uint64, MaxSlots)
+	var runningTotal [MaxSlots]uint64
 	var cumulative uint64
 
 	for i := 0; i < MaxSlots; i++ {
 		cumulative += slots[i]
 		count += slots[i]
+		runningTotal[i] = cumulative
 
 		var midpointUS float64
 		if i == 0 {
@@ -27,8 +30,22 @@ func SlotsToConstHistogram(slots [MaxSlots]uint64) (count uint64, sum float64, b
 			midpointUS = float64(uint64(1)<<uint(i-1)) * math.Sqrt2
 		}
 		sum += float64(slots[i]) * (midpointUS / 1_000_000.0)
-
-		buckets[log2BucketsSec[i]] = cumulative
 	}
+
+	buckets = make(map[float64]uint64, len(promBuckets))
+	for _, b := range promBuckets {
+		slot := -1
+		for i := 0; i < MaxSlots; i++ {
+			if slotCeiling[i] <= b {
+				slot = i
+			}
+		}
+		if slot >= 0 {
+			buckets[b] = runningTotal[slot]
+		} else {
+			buckets[b] = 0
+		}
+	}
+
 	return count, sum, buckets
 }
