@@ -52,13 +52,14 @@ type Collector struct {
 	nfsKprobeHists  *ebpf.Map
 	resolver        *device.Resolver
 	nodeName        string
+	buckets         []float64
 	blockActive     bool
 	nfsActive       bool
 	nfsKprobeActive bool
 	log             *slog.Logger
 }
 
-func NewCollector(blockHists, nfsHists, nfsKprobeHists *ebpf.Map, blockActive, nfsActive, nfsKprobeActive bool, resolver *device.Resolver, nodeName string, log *slog.Logger) *Collector {
+func NewCollector(blockHists, nfsHists, nfsKprobeHists *ebpf.Map, blockActive, nfsActive, nfsKprobeActive bool, resolver *device.Resolver, nodeName string, buckets []float64, log *slog.Logger) *Collector {
 	return &Collector{
 		blockHists:      blockHists,
 		nfsHists:        nfsHists,
@@ -68,6 +69,7 @@ func NewCollector(blockHists, nfsHists, nfsKprobeHists *ebpf.Map, blockActive, n
 		nfsKprobeActive: nfsKprobeActive,
 		resolver:        resolver,
 		nodeName:        nodeName,
+		buckets:         buckets,
 		log:             log,
 	}
 }
@@ -138,7 +140,7 @@ func (c *Collector) collectBlock(ch chan<- prometheus.Metric) {
 		if key.Op > 3 {
 			continue
 		}
-		count, sum, buckets := SlotsToConstHistogram(val.Slots)
+		count, sum, buckets := SlotsToConstHistogram(val.Slots, c.buckets)
 		if count == 0 {
 			continue
 		}
@@ -184,7 +186,7 @@ func (c *Collector) collectNFS(ch chan<- prometheus.Metric) {
 		if key.Op > 1 {
 			continue
 		}
-		count, sum, buckets := SlotsToConstHistogram(val.Slots)
+		count, sum, buckets := SlotsToConstHistogram(val.Slots, c.buckets)
 		if count == 0 {
 			continue
 		}
@@ -223,7 +225,7 @@ func (c *Collector) collectNFSKprobe(ch chan<- prometheus.Metric) {
 		if key.Op > 3 {
 			continue
 		}
-		count, sum, buckets := SlotsToConstHistogram(val.Slots)
+		count, sum, buckets := SlotsToConstHistogram(val.Slots, c.buckets)
 		if count == 0 {
 			continue
 		}

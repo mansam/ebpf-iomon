@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -19,10 +21,12 @@ type Config struct {
 	NFSKprobeMapSize int
 	NodeName         string
 	ProcPath         string
+	Boundaries       []float64
 }
 
 func Parse() *Config {
 	c := &Config{}
+	var boundariesStr string
 	flag.IntVar(&c.MetricsPort, "metrics-port", 9090, "Port for Prometheus metrics endpoint")
 	flag.IntVar(&c.ScanInterval, "scan-interval", 30, "Device scan interval in seconds")
 	flag.BoolVar(&c.EnableBlock, "enable-block", true, "Enable block I/O tracing")
@@ -34,11 +38,35 @@ func Parse() *Config {
 	flag.IntVar(&c.NFSKprobeMapSize, "nfs-kprobe-map-size", 10240, "Max entries for NFS kprobe start timestamp map")
 	flag.StringVar(&c.NodeName, "node-name", "", "Node name (auto-detected from env NODE_NAME)")
 	flag.StringVar(&c.ProcPath, "proc-path", "/proc", "Path to host proc filesystem")
+	flag.StringVar(&boundariesStr, "boundaries", "10000000,100000000,1000000000", "Histogram bucket boundaries in nanoseconds (comma-separated)")
 	flag.Parse()
 
 	applyEnvOverrides(c)
 
+	if v := os.Getenv("OCP_EBPF_IOMON_BOUNDARIES"); v != "" {
+		boundariesStr = v
+	}
+	c.Boundaries = parseBoundaries(boundariesStr)
+
 	return c
+}
+
+func parseBoundaries(s string) []float64 {
+	parts := strings.Split(s, ",")
+	buckets := make([]float64, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		ns, err := strconv.ParseFloat(p, 64)
+		if err != nil {
+			continue
+		}
+		buckets = append(buckets, ns/1e9)
+	}
+	sort.Float64s(buckets)
+	return buckets
 }
 
 func (c *Config) Validate() error {
@@ -59,6 +87,17 @@ func (c *Config) Validate() error {
 	}
 	if c.NFSKprobeMapSize <= 0 {
 		return fmt.Errorf("nfs-kprobe-map-size must be positive, got %d", c.NFSKprobeMapSize)
+	}
+	if len(c.Boundaries) == 0 {
+		return fmt.Errorf("boundaries must contain at least one value")
+	}
+	for i, b := range c.Boundaries {
+		if b <= 0 {
+			return fmt.Errorf("boundary values must be positive, got %g", b)
+		}
+		if i > 0 && b <= c.Boundaries[i-1] {
+			return fmt.Errorf("boundary values must be in ascending order")
+		}
 	}
 	return nil
 }

@@ -4,8 +4,6 @@ import "math"
 
 const MaxSlots = 26
 
-var promBuckets = []float64{0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
-
 var slotCeiling [MaxSlots]float64
 
 func init() {
@@ -14,7 +12,7 @@ func init() {
 	}
 }
 
-func SlotsToConstHistogram(slots [MaxSlots]uint64) (count uint64, sum float64, buckets map[float64]uint64) {
+func SlotsToConstHistogram(slots [MaxSlots]uint64, promBuckets []float64) (count uint64, sum float64, buckets map[float64]uint64) {
 	var runningTotal [MaxSlots]uint64
 	var cumulative uint64
 

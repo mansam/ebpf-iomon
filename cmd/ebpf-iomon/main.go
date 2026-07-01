@@ -57,7 +57,7 @@ func main() {
 	}
 	defer programs.Close()
 
-	collector := metrics.NewCollector(programs.BlockHists, programs.NfsHists, programs.NfsKprobeHists, programs.BlockActive, programs.NFSActive, programs.NFSKprobeActive, resolver, cfg.NodeName, log)
+	collector := metrics.NewCollector(programs.BlockHists, programs.NfsHists, programs.NfsKprobeHists, programs.BlockActive, programs.NFSActive, programs.NFSKprobeActive, resolver, cfg.NodeName, cfg.Boundaries, log)
 	prometheus.MustRegister(collector)
 
 	mux := http.NewServeMux()
